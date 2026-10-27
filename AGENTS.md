@@ -10,7 +10,16 @@ docker compose -f docker-compose.base44.yml up -d --build
 ```
 
 - `web` runs `./gradlew bootRun -Dgrails.env=mysql` from the bind-mounted working tree
-  (host port 3000 → container 8080). `db` is MariaDB.
+  (container 8080, not published). `proxy` (nginx, host port 3000 → container 80) is the entry
+  point in front of it — the same reverse-proxy shape as the project's production setup in
+  `docker/docker-compose.yml`. `db` is MariaDB.
+- The preview proxy is https and terminates TLS *before* reaching the sandbox, so `proxy`
+  forwards `X-Forwarded-Proto: https` (see `.base44/nginx.conf`). Without it Streama builds
+  absolute redirects with the `http` scheme — `/` → `http://<host>/login/auth` — and a browser
+  refuses to follow that downgrade inside the https preview, so the preview sits on its loading
+  screen forever. Tomcat honours the header via the existing `server.use-forward-headers: true`
+  in `grails-app/conf/application.yml`; no application code or config was changed for this, and
+  the behaviour is unaffected outside this compose setup.
 - The `mysql` Grails environment in `grails-app/conf/application.yml` reads its connection
   from `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_DB` / `MYSQL_USER` / `MYSQL_PASSWORD`, which is
   why no application code or config had to be modified for this environment. Hibernate
@@ -24,6 +33,10 @@ docker compose -f docker-compose.base44.yml up -d --build
 
 ## Things that are not obvious
 
+- Requests through port 3000 always arrive at the app as https, so absolute URLs and redirects
+  carry the https scheme and the port is omitted (e.g. `Location: https://<host>/login/auth`).
+  A plain `curl http://localhost:3000/` therefore sees an https `Location` it will not follow —
+  probe `/login/auth` directly (200) instead of following `/`.
 - Login: the page is `/login/auth`, but credentials must be POSTed to the form's action
   `/login/authenticate` (`username` / `password`, default `admin` / `admin`, announced on the
   login screen); it answers 302 to `/user/loginTarget` and sets `JSESSIONID`. POSTing to
