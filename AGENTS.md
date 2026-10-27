@@ -30,6 +30,12 @@ docker compose -f docker-compose.base44.yml up -d --build
   `/login/auth` instead just re-renders the login page with 200 and no message, which looks
   exactly like a silent authentication failure — use `/login/authenticate` when scripting.
   `/` requires authentication and redirects to the login page.
+  The admin password is **no longer** the seeded `admin`: it was rotated in this sandbox, so the
+  login screen's "try 'admin' for both fields" hint is now stale and `admin` no longer
+  authenticates. The current value is known to the app owner only — ask them rather than
+  guessing. To rotate it again, log in as that user and `POST user/changePassword.json` with
+  `{"oldPassword":…,"newPassword":…,"repeatPassword":…}` (JSON; the new one needs 6+
+  characters); it stores a BCrypt hash and the old password stops working.
 - Video uploads: the "Upload Directory" setting is configured to `/data/streama`, the
   persistent `streama-upload` volume, so uploads work without any manual setup. It is a
   database setting: in a fresh database it is empty, and uploads fail with a 500 until an
