@@ -26,13 +26,23 @@ docker compose -f docker-compose.base44.yml up -d --build
 
 - Login: `/login/auth`, default credentials `admin` / `admin` (announced on the login screen).
   `/` requires authentication and redirects to the login page.
-- Video uploads: the "Upload Directory" setting is empty in a fresh database and must be set
-  (as admin, under Settings) to `/data/streama`, which is the persistent `streama-upload`
-  volume. Uploads fail until it is set.
+- Video uploads: the "Upload Directory" setting is configured to `/data/streama`, the
+  persistent `streama-upload` volume, so uploads work without any manual setup. It is a
+  database setting: in a fresh database it is empty, and uploads fail with a 500 until an
+  admin sets it under Settings (validate → Save Settings). The directory lives on the server —
+  files are uploaded through the web UI, nothing is read from the browser machine.
 - External metadata uses TheMovieDB, and subtitles use OpenSubtitles. Both are stored as
   **database settings entered in the admin Settings page**, not environment variables, so the
   app boots and runs fully without them. Metadata/subtitle fetching stays empty until a key is
-  entered there.
+  entered there. No API key of any kind (Mux or otherwise) is involved in uploading, storing
+  or playing video files — they are served from the local upload directory.
+- Upload/delete API details, useful when testing without a browser: upload is a multipart POST
+  to `file/upload.json` with form field `file` — the `.json` suffix is required, otherwise view
+  resolution fails with a 500 *after* the file has already been written to disk and a `file`
+  row created. Deletion is `DELETE file/removeFileFromDisk.json?id=<fileId>`; issuing it as a
+  POST instead binds a transient domain instance and fails with a Hibernate
+  `TransientObjectException` without deleting anything. Only browser-playable containers
+  (`.mp4`, `.webm`, `.mkv`, `.ogg`, `.m4v`) are accepted, and the server does not transcode.
 - Frontend assets (JS/CSS/translations under `grails-app/assets/`) are read live from the
   working tree — editing them shows up on a browser refresh. Groovy classes, controllers,
   services and domain classes are compiled at boot, so those changes need
