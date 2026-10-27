@@ -24,7 +24,11 @@ docker compose -f docker-compose.base44.yml up -d --build
 
 ## Things that are not obvious
 
-- Login: `/login/auth`, default credentials `admin` / `admin` (announced on the login screen).
+- Login: the page is `/login/auth`, but credentials must be POSTed to the form's action
+  `/login/authenticate` (`username` / `password`, default `admin` / `admin`, announced on the
+  login screen); it answers 302 to `/user/loginTarget` and sets `JSESSIONID`. POSTing to
+  `/login/auth` instead just re-renders the login page with 200 and no message, which looks
+  exactly like a silent authentication failure — use `/login/authenticate` when scripting.
   `/` requires authentication and redirects to the login page.
 - Video uploads: the "Upload Directory" setting is configured to `/data/streama`, the
   persistent `streama-upload` volume, so uploads work without any manual setup. It is a
@@ -41,7 +45,10 @@ docker compose -f docker-compose.base44.yml up -d --build
   resolution fails with a 500 *after* the file has already been written to disk and a `file`
   row created. Deletion is `DELETE file/removeFileFromDisk.json?id=<fileId>`; issuing it as a
   POST instead binds a transient domain instance and fails with a Hibernate
-  `TransientObjectException` without deleting anything. Only browser-playable containers
+  `TransientObjectException` without deleting anything. These are exactly the two calls the
+  browser UI makes (`file/upload.json`, `DELETE file/removeFileFromDisk.json`), so a
+  correctly issued pair logs no errors — verify with those and the same-origin `file/serve/<id>.mp4`
+  read, never with the wrong verb or a missing `.json`. Only browser-playable containers
   (`.mp4`, `.webm`, `.mkv`, `.ogg`, `.m4v`) are accepted, and the server does not transcode.
 - Frontend assets (JS/CSS/translations under `grails-app/assets/`) are read live from the
   working tree — editing them shows up on a browser refresh. Groovy classes, controllers,
